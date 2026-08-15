@@ -131,35 +131,39 @@ toggleBtn.MouseButton1Click:Connect(function()
     updateUI()
 end)
 
+local validClasses = {
+    TextButton = true, ImageButton = true,
+    Frame = true, TextLabel = true, ImageLabel = true, ScrollingFrame = true
+}
+
 local function clickNon()
     local found = 0
     for _, gui in ipairs(playerGui:GetChildren()) do
         if gui.Name ~= "AntiAFKUI" then
             for _, obj in ipairs(gui:GetDescendants()) do
-                -- Fix : vérifie que Visible existe avant d'y accéder
-                local visibleOk, isVisible = pcall(function() return obj.Visible end)
-                if visibleOk and isVisible then
-                    found += 1
-                    local bg, textOk = false, false
+                if not validClasses[obj.ClassName] then continue end
+                if not obj.Visible then continue end
 
-                    pcall(function()
-                        if obj:IsA("Frame") or obj:IsA("TextButton") or obj:IsA("ImageButton") then
-                            bg = isGreen(obj.BackgroundColor3)
-                        end
-                    end)
+                found += 1
+                local bg, textOk = false, false
 
-                    pcall(function()
-                        if obj:IsA("TextButton") or obj:IsA("TextLabel") then
-                            textOk = obj.Text:lower():gsub("%s+", "") == "non"
-                        end
-                    end)
-
-                    if bg or textOk then
-                        debugLabel.Text = "Trouvé: " .. obj.ClassName .. " " .. obj.Name
-                        tryClick(obj)
-                        clickCount += 1
-                        return true
+                pcall(function()
+                    if obj:IsA("Frame") or obj:IsA("TextButton") or obj:IsA("ImageButton") then
+                        bg = isGreen(obj.BackgroundColor3)
                     end
+                end)
+
+                pcall(function()
+                    if obj:IsA("TextButton") or obj:IsA("TextLabel") then
+                        textOk = obj.Text:lower():gsub("%s+", "") == "non"
+                    end
+                end)
+
+                if bg or textOk then
+                    debugLabel.Text = "Trouvé: " .. obj.ClassName .. " " .. obj.Name
+                    tryClick(obj)
+                    clickCount += 1
+                    return true
                 end
             end
         end
