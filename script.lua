@@ -10,26 +10,18 @@ local function isGreen(color)
 end
 
 local function tryClick(obj)
-    -- Méthode 1 : Fire direct
     pcall(function() obj.MouseButton1Click:Fire() end)
-    -- Méthode 2 : executor functions
     pcall(function() firebutton(obj) end)
-    pcall(function() mouse1click(obj) end)
-    pcall(function() mouse1press(obj) end)
-    -- Méthode 3 : VIM
     pcall(function()
         local VIM = game:GetService("VirtualInputManager")
         local pos = obj.AbsolutePosition
         local size = obj.AbsoluteSize
-        local cx = pos.X + size.X / 2
-        local cy = pos.Y + size.Y / 2
-        VIM:SendMouseButtonEvent(cx, cy, 0, true, game, 1)
+        VIM:SendMouseButtonEvent(pos.X + size.X/2, pos.Y + size.Y/2, 0, true, game, 1)
         task.wait(0.05)
-        VIM:SendMouseButtonEvent(cx, cy, 0, false, game, 1)
+        VIM:SendMouseButtonEvent(pos.X + size.X/2, pos.Y + size.Y/2, 0, false, game, 1)
     end)
 end
 
--- Label debug
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "AntiAFKUI"
 screenGui.ResetOnSpawn = false
@@ -96,7 +88,6 @@ countLabel.Font = Enum.Font.Gotham
 countLabel.TextXAlignment = Enum.TextXAlignment.Left
 countLabel.Parent = frame
 
--- Label debug
 local debugLabel = Instance.new("TextLabel")
 debugLabel.Size = UDim2.new(1, -20, 0, 16)
 debugLabel.Position = UDim2.new(0, 10, 0, 78)
@@ -145,10 +136,11 @@ local function clickNon()
     for _, gui in ipairs(playerGui:GetChildren()) do
         if gui.Name ~= "AntiAFKUI" then
             for _, obj in ipairs(gui:GetDescendants()) do
-                if obj.Visible then
+                -- Fix : vérifie que Visible existe avant d'y accéder
+                local visibleOk, isVisible = pcall(function() return obj.Visible end)
+                if visibleOk and isVisible then
                     found += 1
-                    local bg = false
-                    local textOk = false
+                    local bg, textOk = false, false
 
                     pcall(function()
                         if obj:IsA("Frame") or obj:IsA("TextButton") or obj:IsA("ImageButton") then
