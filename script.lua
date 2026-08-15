@@ -1,5 +1,4 @@
 local Players = game:GetService("Players")
-local VIM = game:GetService("VirtualInputManager")
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
@@ -10,59 +9,34 @@ local function isGreen(color)
     return color.G > 0.35 and color.R < 0.45 and color.B < 0.45
 end
 
-local function clickNon()
-    for _, gui in ipairs(playerGui:GetChildren()) do
-        if gui.Name ~= "AntiAFKUI" then
-            for _, obj in ipairs(gui:GetDescendants()) do
-                if obj.Visible then
-                    local bg = false
-                    local textOk = false
-
-                    if obj:IsA("Frame") or obj:IsA("TextButton") or obj:IsA("ImageButton") then
-                        pcall(function() bg = isGreen(obj.BackgroundColor3) end)
-                    end
-
-                    if obj:IsA("TextButton") or obj:IsA("TextLabel") then
-                        pcall(function()
-                            textOk = obj.Text:lower():gsub("%s+", "") == "non"
-                        end)
-                    end
-
-                    if bg or textOk then
-                        local pos = obj.AbsolutePosition
-                        local size = obj.AbsoluteSize
-                        local cx = pos.X + size.X / 2
-                        local cy = pos.Y + size.Y / 2
-
-                        pcall(function()
-                            VIM:SendMouseButtonEvent(cx, cy, 0, true, game, 1)
-                            task.wait(0.05)
-                            VIM:SendMouseButtonEvent(cx, cy, 0, false, game, 1)
-                        end)
-
-                        pcall(function()
-                            if obj:IsA("TextButton") or obj:IsA("ImageButton") then
-                                obj.MouseButton1Click:Fire()
-                            end
-                        end)
-
-                        clickCount += 1
-                        return true
-                    end
-                end
-            end
-        end
-    end
-    return false
+local function tryClick(obj)
+    -- Méthode 1 : Fire direct
+    pcall(function() obj.MouseButton1Click:Fire() end)
+    -- Méthode 2 : executor functions
+    pcall(function() firebutton(obj) end)
+    pcall(function() mouse1click(obj) end)
+    pcall(function() mouse1press(obj) end)
+    -- Méthode 3 : VIM
+    pcall(function()
+        local VIM = game:GetService("VirtualInputManager")
+        local pos = obj.AbsolutePosition
+        local size = obj.AbsoluteSize
+        local cx = pos.X + size.X / 2
+        local cy = pos.Y + size.Y / 2
+        VIM:SendMouseButtonEvent(cx, cy, 0, true, game, 1)
+        task.wait(0.05)
+        VIM:SendMouseButtonEvent(cx, cy, 0, false, game, 1)
+    end)
 end
 
+-- Label debug
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "AntiAFKUI"
 screenGui.ResetOnSpawn = false
 screenGui.Parent = playerGui
 
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 200, 0, 110)
+frame.Size = UDim2.new(0, 210, 0, 130)
 frame.Position = UDim2.new(0, 20, 0, 20)
 frame.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
 frame.BorderSizePixel = 0
@@ -122,9 +96,21 @@ countLabel.Font = Enum.Font.Gotham
 countLabel.TextXAlignment = Enum.TextXAlignment.Left
 countLabel.Parent = frame
 
+-- Label debug
+local debugLabel = Instance.new("TextLabel")
+debugLabel.Size = UDim2.new(1, -20, 0, 16)
+debugLabel.Position = UDim2.new(0, 10, 0, 78)
+debugLabel.BackgroundTransparency = 1
+debugLabel.Text = "Debug : scan..."
+debugLabel.TextColor3 = Color3.fromRGB(180, 180, 100)
+debugLabel.TextSize = 10
+debugLabel.Font = Enum.Font.Gotham
+debugLabel.TextXAlignment = Enum.TextXAlignment.Left
+debugLabel.Parent = frame
+
 local toggleBtn = Instance.new("TextButton")
 toggleBtn.Size = UDim2.new(1, -20, 0, 28)
-toggleBtn.Position = UDim2.new(0, 10, 0, 76)
+toggleBtn.Position = UDim2.new(0, 10, 0, 96)
 toggleBtn.BackgroundColor3 = Color3.fromRGB(60, 180, 100)
 toggleBtn.BorderSizePixel = 0
 toggleBtn.Text = "Désactiver"
@@ -153,6 +139,42 @@ toggleBtn.MouseButton1Click:Connect(function()
     enabled = not enabled
     updateUI()
 end)
+
+local function clickNon()
+    local found = 0
+    for _, gui in ipairs(playerGui:GetChildren()) do
+        if gui.Name ~= "AntiAFKUI" then
+            for _, obj in ipairs(gui:GetDescendants()) do
+                if obj.Visible then
+                    found += 1
+                    local bg = false
+                    local textOk = false
+
+                    pcall(function()
+                        if obj:IsA("Frame") or obj:IsA("TextButton") or obj:IsA("ImageButton") then
+                            bg = isGreen(obj.BackgroundColor3)
+                        end
+                    end)
+
+                    pcall(function()
+                        if obj:IsA("TextButton") or obj:IsA("TextLabel") then
+                            textOk = obj.Text:lower():gsub("%s+", "") == "non"
+                        end
+                    end)
+
+                    if bg or textOk then
+                        debugLabel.Text = "Trouvé: " .. obj.ClassName .. " " .. obj.Name
+                        tryClick(obj)
+                        clickCount += 1
+                        return true
+                    end
+                end
+            end
+        end
+    end
+    debugLabel.Text = "Scan: " .. found .. " éléments"
+    return false
+end
 
 task.spawn(function()
     while true do
