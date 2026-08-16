@@ -5,30 +5,34 @@ local playerGui = player:WaitForChild("PlayerGui")
 local enabled = true
 local clickCount = 0
 
-local function isGreen(color)
-    return color.G > 0.35 and color.R < 0.45 and color.B < 0.45
+local function clickNo(gui)
+    if not enabled then return end
+    -- Attend que les boutons soient chargés
+    task.wait(1)
+    for _, obj in ipairs(gui:GetDescendants()) do
+        if obj:IsA("TextButton") and obj.Text == "No" and obj.Visible then
+            warn("Bouton No trouve!")
+            pcall(function() obj.MouseButton1Click:Fire() end)
+            pcall(function()
+                for _, c in ipairs(getconnections(obj.MouseButton1Click)) do
+                    c:Fire()
+                end
+            end)
+            clickCount += 1
+            return true
+        end
+    end
+    warn("No introuvable")
 end
 
-local function tryClick(obj)
-    pcall(function() obj.MouseButton1Click:Fire() end)
-    pcall(function() firebutton(obj) end)
-    pcall(function()
-        local VIM = game:GetService("VirtualInputManager")
-        local pos = obj.AbsolutePosition
-        local size = obj.AbsoluteSize
-        VIM:SendMouseButtonEvent(pos.X + size.X/2, pos.Y + size.Y/2, 0, true, game, 1)
-        task.wait(0.05)
-        VIM:SendMouseButtonEvent(pos.X + size.X/2, pos.Y + size.Y/2, 0, false, game, 1)
-    end)
-end
-
+-- UI
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "AntiAFKUI"
 screenGui.ResetOnSpawn = false
 screenGui.Parent = playerGui
 
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 210, 0, 130)
+frame.Size = UDim2.new(0, 200, 0, 110)
 frame.Position = UDim2.new(0, 20, 0, 20)
 frame.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
 frame.BorderSizePixel = 0
@@ -59,7 +63,7 @@ local titleLabel = Instance.new("TextLabel")
 titleLabel.Size = UDim2.new(1, -10, 1, 0)
 titleLabel.Position = UDim2.new(0, 10, 0, 0)
 titleLabel.BackgroundTransparency = 1
-titleLabel.Text = "⚙ Anti-AFK"
+titleLabel.Text = "Anti-AFK"
 titleLabel.TextColor3 = Color3.fromRGB(200, 200, 220)
 titleLabel.TextSize = 13
 titleLabel.Font = Enum.Font.GothamBold
@@ -88,23 +92,12 @@ countLabel.Font = Enum.Font.Gotham
 countLabel.TextXAlignment = Enum.TextXAlignment.Left
 countLabel.Parent = frame
 
-local debugLabel = Instance.new("TextLabel")
-debugLabel.Size = UDim2.new(1, -20, 0, 16)
-debugLabel.Position = UDim2.new(0, 10, 0, 78)
-debugLabel.BackgroundTransparency = 1
-debugLabel.Text = "Debug : scan..."
-debugLabel.TextColor3 = Color3.fromRGB(180, 180, 100)
-debugLabel.TextSize = 10
-debugLabel.Font = Enum.Font.Gotham
-debugLabel.TextXAlignment = Enum.TextXAlignment.Left
-debugLabel.Parent = frame
-
 local toggleBtn = Instance.new("TextButton")
 toggleBtn.Size = UDim2.new(1, -20, 0, 28)
-toggleBtn.Position = UDim2.new(0, 10, 0, 96)
+toggleBtn.Position = UDim2.new(0, 10, 0, 76)
 toggleBtn.BackgroundColor3 = Color3.fromRGB(60, 180, 100)
 toggleBtn.BorderSizePixel = 0
-toggleBtn.Text = "Désactiver"
+toggleBtn.Text = "Desactiver"
 toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 toggleBtn.TextSize = 12
 toggleBtn.Font = Enum.Font.GothamBold
@@ -115,7 +108,7 @@ local function updateUI()
     if enabled then
         statusLabel.Text = "Statut : ACTIF"
         statusLabel.TextColor3 = Color3.fromRGB(100, 220, 130)
-        toggleBtn.Text = "Désactiver"
+        toggleBtn.Text = "Desactiver"
         toggleBtn.BackgroundColor3 = Color3.fromRGB(60, 180, 100)
     else
         statusLabel.Text = "Statut : INACTIF"
@@ -131,58 +124,39 @@ toggleBtn.MouseButton1Click:Connect(function()
     updateUI()
 end)
 
-local validClasses = {
-    TextButton = true, ImageButton = true,
-    Frame = true, TextLabel = true, ImageLabel = true, ScrollingFrame = true
-}
-
-local function clickNon()
-    local found = 0
-    for _, gui in ipairs(playerGui:GetChildren()) do
-        if gui.Name ~= "AntiAFKUI" then
-            for _, obj in ipairs(gui:GetDescendants()) do
-                if not validClasses[obj.ClassName] then continue end
-                if not obj.Visible then continue end
-
-                found += 1
-                local bg, textOk = false, false
-
+-- Ecoute AntiAFKGUI via DescendantAdded du bouton No
+playerGui.ChildAdded:Connect(function(child)
+    if child.Name == "AntiAFKGUI" then
+        warn("AntiAFKGUI detecte!")
+        -- Attend le bouton No directement
+        child.DescendantAdded:Connect(function(obj)
+            if obj:IsA("TextButton") and obj.Text == "No" then
+                warn("Bouton No ajoute!")
+                task.wait(0.3)
+                pcall(function() obj.MouseButton1Click:Fire() end)
                 pcall(function()
-                    if obj:IsA("Frame") or obj:IsA("TextButton") or obj:IsA("ImageButton") then
-                        bg = isGreen(obj.BackgroundColor3)
+                    for _, c in ipairs(getconnections(obj.MouseButton1Click)) do
+                        c:Fire()
                     end
                 end)
-
-                pcall(function()
-                    if obj:IsA("TextButton") or obj:IsA("TextLabel") then
-                        textOk = obj.Text:lower():gsub("%s+", "") == "non"
-                    end
-                end)
-
-                if bg or textOk then
-                    debugLabel.Text = "Trouvé: " .. obj.ClassName .. " " .. obj.Name
-                    tryClick(obj)
-                    clickCount += 1
-                    return true
-                end
-            end
-        end
-    end
-    debugLabel.Text = "Scan: " .. found .. " éléments"
-    return false
-end
-
-task.spawn(function()
-    while true do
-        task.wait(0.5)
-        if enabled then
-            local found = clickNon()
-            if found then
+                clickCount += 1
                 updateUI()
-                task.wait(3)
             end
-        end
+        end)
+        -- Check si deja present
+        task.spawn(function()
+            local clicked = clickNo(child)
+            if clicked then updateUI() end
+        end)
     end
 end)
+
+local existing = playerGui:FindFirstChild("AntiAFKGUI")
+if existing then
+    task.spawn(function()
+        local clicked = clickNo(existing)
+        if clicked then updateUI() end
+    end)
+end
 
 updateUI()
