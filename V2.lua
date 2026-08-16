@@ -7,25 +7,23 @@ local clickCount = 0
 
 local function clickNo(gui)
     if not enabled then return end
-    -- Attend que les boutons soient chargés
-    task.wait(1)
+    task.wait(0.5)
     for _, obj in ipairs(gui:GetDescendants()) do
         if obj:IsA("TextButton") and obj.Text == "No" and obj.Visible then
-            warn("Bouton No trouve!")
-            pcall(function() obj.MouseButton1Click:Fire() end)
+            local cx = obj.AbsolutePosition.X + obj.AbsoluteSize.X / 2
+            local cy = obj.AbsolutePosition.Y + obj.AbsoluteSize.Y / 2
+            -- Méthode Delta native
             pcall(function()
-                for _, c in ipairs(getconnections(obj.MouseButton1Click)) do
-                    c:Fire()
-                end
+                mousemoveabs(cx, cy)
+                task.wait(0.05)
+                mouse1click()
             end)
             clickCount += 1
             return true
         end
     end
-    warn("No introuvable")
 end
 
--- UI
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "AntiAFKUI"
 screenGui.ResetOnSpawn = false
@@ -40,10 +38,6 @@ frame.Active = true
 frame.Draggable = true
 frame.Parent = screenGui
 Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 10)
-
-local stroke = Instance.new("UIStroke", frame)
-stroke.Color = Color3.fromRGB(60, 60, 80)
-stroke.Thickness = 1
 
 local titleBar = Instance.new("Frame")
 titleBar.Size = UDim2.new(1, 0, 0, 32)
@@ -124,29 +118,24 @@ toggleBtn.MouseButton1Click:Connect(function()
     updateUI()
 end)
 
--- Ecoute AntiAFKGUI via DescendantAdded du bouton No
 playerGui.ChildAdded:Connect(function(child)
     if child.Name == "AntiAFKGUI" then
-        warn("AntiAFKGUI detecte!")
-        -- Attend le bouton No directement
         child.DescendantAdded:Connect(function(obj)
             if obj:IsA("TextButton") and obj.Text == "No" then
-                warn("Bouton No ajoute!")
                 task.wait(0.3)
-                pcall(function() obj.MouseButton1Click:Fire() end)
+                local cx = obj.AbsolutePosition.X + obj.AbsoluteSize.X / 2
+                local cy = obj.AbsolutePosition.Y + obj.AbsoluteSize.Y / 2
                 pcall(function()
-                    for _, c in ipairs(getconnections(obj.MouseButton1Click)) do
-                        c:Fire()
-                    end
+                    mousemoveabs(cx, cy)
+                    task.wait(0.05)
+                    mouse1click()
                 end)
                 clickCount += 1
                 updateUI()
             end
         end)
-        -- Check si deja present
         task.spawn(function()
-            local clicked = clickNo(child)
-            if clicked then updateUI() end
+            if clickNo(child) then updateUI() end
         end)
     end
 end)
@@ -154,8 +143,7 @@ end)
 local existing = playerGui:FindFirstChild("AntiAFKGUI")
 if existing then
     task.spawn(function()
-        local clicked = clickNo(existing)
-        if clicked then updateUI() end
+        if clickNo(existing) then updateUI() end
     end)
 end
 
